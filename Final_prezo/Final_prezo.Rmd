@@ -1,0 +1,106 @@
+---
+title: "Text analytics for large sets of customer feedback"
+author: "phi.designer"
+date: "11 August 2015"
+output: ioslides_presentation
+incremental: true
+smaller: true
+logo: noun_168650_cc.png
+---
+
+## Objectives
+
+According to IBM, about *"80% of the information created and used by an enterprise is unstructured data, and this figure is growing at twice the rate of structured data”*. 
+
+Hence, it becomes imperative to **developed the required skills and tools to unlock this vast source of information** for critical business insights.
+
+> - The [accompanying app](https://phidesigner.shinyapps.io/Final_app) for this presentation, aims at exposing users to some of the most common, yet simple, techniques used for text mining, in an **interactive and simple way**.
+
+Further information on text mining can be gathered from Yanchang Z. [Text Mining with R tutorials](http://www.rdatamining.com/examples/text-mining).
+
+## Methodology
+
+The [app](https://phidesigner.shinyapps.io/Final_app) exposes users to simple text mining techniques, by allowing the interaction with three common Text Mining tools: **Word counting, Tree clustering and Kmeans analysis for word proximity**, through the following interactions:
+
+> - **1) Bar chart for word counting across all feedback:** Choose lower percentage threshold of word usage across all feedback (e.g. words used on at least 50 % of all feedback).
+
+> - **2) Dendogram of feedback’s natural clustering:** Choose max allowed sparsity threshold (i.e. resulting cluster contains only terms with a sparse factor of less than sparse value)
+
+> - **3) Verbatim of clusters by word proximity (K means):** Choose number of words per cluster, so as to better understand narrative.
+
+## Dendogram chart example | Promoter's feedback {.flexbox .vcenter}
+
+```{r, echo=FALSE, cache=TRUE, error=FALSE, message=FALSE, warning=FALSE}
+# requried libraries
+library(tm)
+library(SnowballC)
+library(ggplot2)
+library(ggdendro)
+
+# reading file
+data <- read.csv("Book1.csv", stringsAsFactors = TRUE)
+Promo <- as.data.frame(data[data$Score == "Prom", 2]); names(Promo) <- "Reason"
+
+# creating corpus
+# Promo
+Corpus_Promo <- Corpus(VectorSource(Promo$Reason))
+Corpus_Promo <- tm_map(Corpus_Promo, content_transformer(tolower))
+Corpus_Promo <- tm_map(Corpus_Promo, removePunctuation)
+Corpus_Promo <- tm_map(Corpus_Promo, removeWords, stopwords("english"))
+
+# Freq matrix (words >3 characters)
+tdm_Promo <- TermDocumentMatrix(Corpus_Promo, control = list(wordLengths = c(3, Inf)))
+
+# Check for sparsity (most Freq terms)
+frq_Promo <- findFreqTerms(tdm_Promo, lowfreq=50)
+
+# Check for sparsity
+# Promo
+term.frq_P <- rowSums(as.matrix(tdm_Promo))
+term.frq_P <- subset(term.frq_P, term.frq_P >= 50)
+df_P <- data.frame(term = names(term.frq_P), freq = term.frq_P)
+
+# Clustering
+# remove sparse terms
+Promo_clust <- removeSparseTerms(tdm_Promo, sparse = 0.93)
+Promo_matrix <- as.matrix(Promo_clust)
+
+# Plotting cluster terms
+dist_Promo <- dist(scale(Promo_matrix)) # clustering terms by proximity
+fit_Promo <- hclust(dist_Promo, method = "ward.D2")
+dendr    <- dendro_data(fit_Promo, type="rectangle")
+clust    <- cutree(fit_Promo,k=4)
+clust.df <- data.frame(label=names(clust), cluster=factor(clust))
+dendr[["labels"]] <- merge(dendr[["labels"]],clust.df, by="label")
+ggplot() + geom_segment(data=segment(dendr), aes(x=x, y=y, xend=xend, yend=yend)) + 
+  geom_text(data=label(dendr), aes(x, y, label=label, hjust=0, color=cluster), 
+            size=4) + theme_minimal() + coord_flip() + scale_y_reverse(expand=c(.2,0)) +
+               labs(title = "Dendogram: Clustering by themes", x = "Themes", y = "Distance")
+```
+
+## Dendogram's code {.smaller}
+
+```{r, echo=TRUE, eval=FALSE}
+# Remove sparse terms
+Promo_clust <- removeSparseTerms(tdm_Promo, sparse = 0.93)
+Promo_matrix <- as.matrix(Promo_clust)
+# Plotting cluster terms
+dist_Promo <- dist(scale(Promo_matrix))
+fit_Promo <- hclust(dist_Promo, method = "ward.D2")
+dendr    <- dendro_data(fit_Promo, type="rectangle")
+clust    <- cutree(fit_Promo,k=4)
+clust.df <- data.frame(label=names(clust), cluster=factor(clust))
+dendr[["labels"]] <- merge(dendr[["labels"]],clust.df, by="label")
+# Dendogram plot
+ggplot() + geom_segment(data=segment(dendr), aes(x=x, y=y,
+          xend=xend, yend=yend)) + geom_text(data=label(dendr), 
+          aes(x, y, label=label, hjust=0, color=cluster), 
+          size=4) + theme_minimal() + coord_flip() 
+          + scale_y_reverse(expand=c(.2,0)) 
+          + labs(title = "Dendogram: Clustering by themes", 
+          x = "Themes", y = "Distance")
+```
+
+... Thanks!
+
+PS: This presentation was done in RStudio presenter using "output: ioslides_presentation" for the Data Science Specialisation (JHU/Coursera)

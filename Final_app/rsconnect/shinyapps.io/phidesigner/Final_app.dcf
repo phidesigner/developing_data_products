@@ -1,0 +1,8 @@
+name: Final_app
+account: phidesigner
+server: shinyapps.io
+bundleId: 237457
+url: https://phidesigner.shinyapps.io/Final_app
+when: 1439328209.65481
+asMultiple: FALSE
+asStatic: FALSE
